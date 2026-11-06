@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A892DF" />
+      <stop offset="50%" stop-color="#9B82D7" />
+      <stop offset="100%" stop-color="#7B61BE" />
+    </linearGradient>
+
+    <!-- Cloud Gradient -->
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#F7F4FD" />
+      <stop offset="100%" stop-color="#E9E1FF" />
+    </linearGradient>
+
+    <!-- Sparkle Gold Gradient -->
+    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF9E6" />
+      <stop offset="40%" stop-color="#FFE8A3" />
+      <stop offset="100%" stop-color="#FFD166" />
+    </linearGradient>
+
+    <!-- Drop Shadow for Cloud -->
+    <filter id="cloudShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#4A3B75" flood-opacity="0.32" />
+    </filter>
+
+    <!-- Glow for Stars -->
+    <filter id="starGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Full background -->
+  <rect width="512" height="512" fill="url(#bgGrad)" rx="112" />
+
+  <!-- Subtle background ambient soft circle -->
+  <circle cx="256" cy="220" r="180" fill="#BFA9F0" opacity="0.3" filter="blur(30px)" />
+
+  <g transform="translate(30.72, 30.72) scale(0.88)">
+    <!-- Star Sparkle 1 (Large top-right) -->
+    <g transform="translate(365, 135)" filter="url(#starGlow)">
+      <path d="M 0 -36 Q 0 0 36 0 Q 0 0 0 36 Q 0 0 -36 0 Q 0 0 0 -36 Z" fill="url(#sparkleGrad)" />
+      <circle cx="0" cy="0" r="6" fill="#FFFFFF" />
+    </g>
+
+    <!-- Star Sparkle 2 (Medium top-left) -->
+    <g transform="translate(130, 160)" filter="url(#starGlow)">
+      <path d="M 0 -24 Q 0 0 24 0 Q 0 0 0 24 Q 0 0 -24 0 Q 0 0 0 -24 Z" fill="url(#sparkleGrad)" opacity="0.95" />
+      <circle cx="0" cy="0" r="4" fill="#FFFFFF" />
+    </g>
+
+    <!-- Star Sparkle 3 (Small right) -->
+    <g transform="translate(415, 250)" filter="url(#starGlow)">
+      <path d="M 0 -16 Q 0 0 16 0 Q 0 0 0 16 Q 0 0 -16 0 Q 0 0 0 -16 Z" fill="#FFFFFF" opacity="0.85" />
+    </g>
+
+    <!-- Star Sparkle 4 (Small left accent) -->
+    <g transform="translate(95, 290)" filter="url(#starGlow)">
+      <path d="M 0 -12 Q 0 0 12 0 Q 0 0 0 12 Q 0 0 -12 0 Q 0 0 0 -12 Z" fill="#FFE8A3" opacity="0.9" />
+    </g>
+
+    <!-- Soft Cloud Shape with shadow -->
+    <g filter="url(#cloudShadow)">
+      <!-- Cloud main body -->
+      <path d="
+        M 170 360
+        L 345 360
+        A 55 55 0 0 0 385 270
+        A 65 65 0 0 0 320 185
+        A 78 78 0 0 0 195 200
+        A 58 58 0 0 0 130 265
+        A 55 55 0 0 0 170 360
+        Z
+      " fill="url(#cloudGrad)" />
+
+      <!-- Subtle inner highlight curves on cloud -->
+      <path d="
+        M 200 215
+        A 65 65 0 0 1 310 205
+      " stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.7" />
+
+      <path d="
+        M 145 275
+        A 45 45 0 0 1 185 240
+      " stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.6" />
+    </g>
+
+    <!-- Small cute sparkle resting on the cloud -->
+    <g transform="translate(260, 245)">
+      <path d="M 0 -18 Q 0 0 18 0 Q 0 0 0 18 Q 0 0 -18 0 Q 0 0 0 -18 Z" fill="#9B82D7" opacity="0.75" />
+      <circle cx="0" cy="0" r="3.5" fill="#FFFFFF" />
+    </g>
+  </g>
+</svg>

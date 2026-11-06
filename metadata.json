@@ -1,0 +1,8 @@
+{
+  "name": "WorkFlow – Smart Personal Work Planner",
+  "description": "ระบบบริหารจัดการงานส่วนตัวสำหรับคนทำงานออฟฟิศ พร้อมปฏิทิน การติดตามงาน แจ้งเตือน และผู้ช่วย AI อัจฉริยะ",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
