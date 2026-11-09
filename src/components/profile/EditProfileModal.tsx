@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useWorkFlow } from '../../context/WorkFlowContext';
+import { useAuth } from '../../context/AuthContext';
 
 const PRESET_AVATARS = [
   {
@@ -89,27 +90,28 @@ function compressAndResizeImage(file: File): Promise<string> {
 export const EditProfileModal: React.FC = () => {
   const { userSettings, updateUserSettings, isProfileModalOpen, closeProfileModal } =
     useWorkFlow();
+  const { currentUser, userProfile, updateUserProfileData } = useAuth();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [userName, setUserName] = useState(userSettings.userName);
+  const [userName, setUserName] = useState(userProfile?.displayName || userSettings.userName);
   const [userRole, setUserRole] = useState(userSettings.userRole);
   const [department, setDepartment] = useState(userSettings.department);
-  const [avatarUrl, setAvatarUrl] = useState(userSettings.avatarUrl);
+  const [avatarUrl, setAvatarUrl] = useState(userProfile?.photoURL || userSettings.avatarUrl);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
 
   useEffect(() => {
     if (isProfileModalOpen) {
-      setUserName(userSettings.userName);
+      setUserName(userProfile?.displayName || userSettings.userName);
       setUserRole(userSettings.userRole);
       setDepartment(userSettings.department);
-      setAvatarUrl(userSettings.avatarUrl);
+      setAvatarUrl(userProfile?.photoURL || userSettings.avatarUrl);
       setUploadedFileName(null);
       setShowSavedFeedback(false);
     }
-  }, [isProfileModalOpen, userSettings]);
+  }, [isProfileModalOpen, userSettings, userProfile]);
 
   if (!isProfileModalOpen) return null;
 
@@ -155,6 +157,13 @@ export const EditProfileModal: React.FC = () => {
       department: department.trim(),
       avatarUrl: avatarUrl.trim() || userSettings.avatarUrl,
     });
+
+    if (currentUser) {
+      updateUserProfileData({
+        displayName: userName.trim(),
+        photoURL: avatarUrl.trim() || userProfile?.photoURL,
+      }).catch((err) => console.warn('Sync profile to Firestore error:', err));
+    }
 
     setShowSavedFeedback(true);
     setTimeout(() => {

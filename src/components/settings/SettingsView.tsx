@@ -16,9 +16,16 @@ import {
   Sparkles,
   CheckCircle2,
   Share,
+  LogIn,
+  LogOut,
+  Key,
+  Mail,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { useWorkFlow } from '../../context/WorkFlowContext';
 import { usePWA } from '../../context/PWAContext';
+import { useAuth } from '../../context/AuthContext';
 import { CategoryDef } from '../../types';
 
 export const SettingsView: React.FC = () => {
@@ -42,6 +49,18 @@ export const SettingsView: React.FC = () => {
     triggerInstall,
     setShowIOSModal,
   } = usePWA();
+
+  const {
+    currentUser,
+    userProfile,
+    openAuthModal,
+    logoutUser,
+    resetPassword,
+    resendVerification,
+  } = useAuth();
+
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [verifySent, setVerifySent] = useState(false);
 
   // Profile fields
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,6 +212,125 @@ export const SettingsView: React.FC = () => {
         <p className="text-xs text-[#827A94] mt-1">
           ปรับแต่งข้อมูลส่วนตัว เวลาทำงาน หมวดหมู่งาน และการสำรองข้อมูล
         </p>
+      </div>
+
+      {/* 0. Account & Authentication Card */}
+      <div className="bg-white p-6 rounded-2xl border border-[#E9E5F5] shadow-xs">
+        <div className="flex items-center justify-between pb-3 border-b border-[#F0EDF9] mb-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#9B82D7]" />
+            <h3 className="font-bold text-sm text-[#373145]">บัญชีผู้ใช้และระบบความปลอดภัย (Account)</h3>
+          </div>
+          {currentUser && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
+              <CheckCircle2 className="w-3 h-3" />
+              เชื่อมต่อระบบแล้ว
+            </span>
+          )}
+        </div>
+
+        {currentUser ? (
+          <div className="space-y-4 text-xs">
+            <div className="p-4 rounded-xl bg-[#FAF9FD] border border-[#EBE7F7] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-[#373145]">
+                    {userProfile?.displayName || currentUser.displayName || 'ผู้ใช้งาน WorkFlow'}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#E9E1FF] text-[#7C3AED] font-semibold">
+                    @{userProfile?.username || 'member'}
+                  </span>
+                </div>
+                <p className="text-[#8C84A0] text-xs flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-[#9B82D7]" />
+                  <span>{currentUser.email}</span>
+                </p>
+                <div className="pt-1 flex items-center gap-2">
+                  {currentUser.emailVerified ? (
+                    <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> ยืนยันอีเมลเรียบร้อยแล้ว
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> ยังไม่ยืนยันอีเมล
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await resendVerification();
+                            setVerifySent(true);
+                            setTimeout(() => setVerifySent(false), 5000);
+                          } catch (e: any) {
+                            alert(e.message || 'ส่งไม่สำเร็จ');
+                          }
+                        }}
+                        className="text-[11px] text-[#7C3AED] underline font-semibold cursor-pointer"
+                      >
+                        {verifySent ? 'ส่งแล้ว!' : 'ส่งลิงก์ยืนยันอีกครั้ง'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (currentUser.email) {
+                      try {
+                        await resetPassword(currentUser.email);
+                        setResetEmailSent(true);
+                        setTimeout(() => setResetEmailSent(false), 5000);
+                      } catch (e: any) {
+                        alert(e.message || 'เกิดข้อผิดพลาด');
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF9FD] text-[#676179] font-semibold border border-[#E0D9F2] shadow-2xs cursor-pointer transition-colors"
+                >
+                  <Key className="w-3.5 h-3.5 text-[#9B82D7]" />
+                  <span>{resetEmailSent ? 'ส่งลิงก์แล้ว' : 'รีเซ็ตรหัสผ่าน'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+                      logoutUser();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200 cursor-pointer transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>ออกจากระบบ</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FAF9FD] to-[#F3EDFC] border border-[#EBE7F7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="font-bold text-sm text-[#373145]">
+                ยังไม่ได้เข้าสู่ระบบ WorkFlow
+              </p>
+              <p className="text-xs text-[#827A94] max-w-md">
+                สมัครสมาชิกหรือเข้าสู่ระบบเพื่อสำรองข้อมูลขึ้นคลาวด์ ค้นหาเพื่อนด้วย Username และแชร์ปฏิทินงานร่วมกัน
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openAuthModal('login')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#9B82D7] to-[#886EC9] hover:opacity-95 text-white font-bold text-xs shadow-md shadow-[#9B82D7]/20 cursor-pointer transition-all self-start sm:self-center"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>เข้าสู่ระบบ / สร้างบัญชี</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 1. Profile Settings */}

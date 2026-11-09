@@ -8,12 +8,15 @@ import { CalendarView } from './components/calendar/CalendarView';
 import { TasksView } from './components/tasks/TasksView';
 import { RemindersView } from './components/reminders/RemindersView';
 import { FollowUpView } from './components/followup/FollowUpView';
+import { FriendsView } from './components/friends/FriendsView';
 import { AiAssistantView } from './components/ai/AiAssistantView';
 import { WeeklyReportView } from './components/weekly/WeeklyReportView';
 import { SettingsView } from './components/settings/SettingsView';
 import { TaskModal } from './components/tasks/TaskModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { PWAInstallModals } from './components/pwa/PWAInstallModals';
+import { AuthProvider } from './context/AuthContext';
+import { AuthModal } from './components/auth/AuthModal';
 
 const AppContent: React.FC = () => {
   const { activeTab } = useWorkFlow();
@@ -38,6 +41,7 @@ const AppContent: React.FC = () => {
             {activeTab === 'dashboard' && <DashboardView />}
             {activeTab === 'calendar' && <CalendarView />}
             {activeTab === 'tasks' && <TasksView />}
+            {activeTab === 'friends' && <FriendsView />}
             {activeTab === 'reminders' && <RemindersView />}
             {activeTab === 'followup' && <FollowUpView />}
             {activeTab === 'ai' && <AiAssistantView />}
@@ -55,6 +59,9 @@ const AppContent: React.FC = () => {
 
       {/* PWA Install & iOS Guidance Modals */}
       <PWAInstallModals />
+
+      {/* Firebase Auth Modal */}
+      <AuthModal />
     </div>
   );
 };
@@ -62,9 +69,11 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <PWAProvider>
-      <WorkFlowProvider>
-        <AppContent />
-      </WorkFlowProvider>
+      <AuthProvider>
+        <WorkFlowProvider>
+          <AppContent />
+        </WorkFlowProvider>
+      </AuthProvider>
     </PWAProvider>
   );
 }

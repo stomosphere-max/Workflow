@@ -1,0 +1,120 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public profile of a user in WorkFlow Social",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "username": { "type": "string", "minLength": 3, "maxLength": 20, "pattern": "^[a-zA-Z0-9_]{3,20}$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "bio": { "type": "string", "maxLength": 250 },
+        "calendarSharingEnabled": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "username", "displayName", "isActive", "createdAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Sensitive PII for user profile strictly private to owner",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 200 },
+        "emailVerified": { "type": "boolean" }
+      },
+      "required": ["email"]
+    },
+    "UsernameRecord": {
+      "title": "UsernameRecord",
+      "description": "Unique username registry map",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "minLength": 3, "maxLength": 20 }
+      },
+      "required": ["uid", "username"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 256 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderUsername": { "type": "string", "maxLength": 20 },
+        "senderDisplayName": { "type": "string", "maxLength": 100 },
+        "senderPhotoURL": { "type": "string", "maxLength": 1000 },
+        "receiverId": { "type": "string", "maxLength": 128 },
+        "receiverUsername": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "senderId", "receiverId", "status", "createdAt"]
+    },
+    "FriendRecord": {
+      "title": "FriendRecord",
+      "description": "Connected friend link in user subcollection",
+      "type": "object",
+      "properties": {
+        "friendUid": { "type": "string", "maxLength": 128 },
+        "friendUsername": { "type": "string", "maxLength": 20 },
+        "friendDisplayName": { "type": "string", "maxLength": 100 },
+        "friendPhotoURL": { "type": "string", "maxLength": 1000 },
+        "since": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["friendUid", "friendUsername", "since"]
+    },
+    "UserTask": {
+      "title": "UserTask",
+      "description": "User task synchronized to cloud",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 300 },
+        "category": { "type": "string", "maxLength": 100 },
+        "priority": { "type": "string", "enum": ["urgent", "high", "medium", "low"] },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "done", "waiting"] },
+        "dueDate": { "type": "string", "maxLength": 30 },
+        "startTime": { "type": "string", "maxLength": 20 },
+        "endTime": { "type": "string", "maxLength": 20 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "department": { "type": "string", "maxLength": 100 },
+        "isSharedWithFriends": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "title", "dueDate", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Public profiles of all registered users"
+    },
+    "/users/{userId}/private/info": {
+      "schema": "UserPrivateInfo",
+      "description": "Private sensitive email and verification data"
+    },
+    "/usernames/{username}": {
+      "schema": "UsernameRecord",
+      "description": "Lookup registry to enforce unique usernames"
+    },
+    "/friend_requests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Pending and resolved friend requests"
+    },
+    "/users/{userId}/friends/{friendUid}": {
+      "schema": "FriendRecord",
+      "description": "List of friends connected to user"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "UserTask",
+      "description": "Tasks created by user, readable by user or friends if sharing enabled"
+    }
+  }
+}

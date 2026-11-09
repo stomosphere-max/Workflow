@@ -146,14 +146,18 @@ ${followUps.filter((f) => f.status !== 'resolved').map((f) => `- ${f.contactName
               <span>ดัชนีประสิทธิภาพงาน</span>
             </div>
             <h3 className="font-bold text-sm text-[#373145]">
-              {productivityScore >= 80
+              {totalTasks === 0
+                ? 'พร้อมเริ่มต้นสัปดาห์ใหม่ (Ready to Start)'
+                : productivityScore >= 80
                 ? 'ยอดเยี่ยมมาก! (High Productivity)'
                 : productivityScore >= 60
                 ? 'ระดับมาตรฐาน (Good Performance)'
                 : 'ควรปรับจังหวะงาน (Needs Attention)'}
             </h3>
             <p className="text-[11px] text-[#736B85] mt-1 leading-relaxed">
-              อัตราความสำเร็จของงานสัปดาห์นี้อยู่ที่ {completionRate}% โดยจัดการงานสำคัญได้อย่างมีประสิทธิภาพ
+              {totalTasks === 0
+                ? 'ยังไม่มีงานในระบบ เพิ่มงานเพื่อติดตามความคืบหน้าและวัดคะแนนประสิทธิภาพ'
+                : `อัตราความสำเร็จของงานสัปดาห์นี้อยู่ที่ ${completionRate}% โดยจัดการงานสำคัญได้อย่างมีประสิทธิภาพ`}
             </p>
           </div>
         </div>

@@ -12,8 +12,12 @@ import {
   Clock,
   X,
   Edit3,
+  UserCheck,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { useWorkFlow, MainNavTab } from '../../context/WorkFlowContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -30,6 +34,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     followUps,
     userSettings,
   } = useWorkFlow();
+
+  const {
+    currentUser,
+    userProfile,
+    openAuthModal,
+    logoutUser,
+    incomingRequests,
+  } = useAuth();
 
   const pendingFollowUps = followUps.filter(
     (f) => f.status === 'waiting' || f.status === 'follow_again'
@@ -58,6 +70,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       icon: <CheckSquare className="w-5 h-5" />,
       badge: stats.todo + stats.inProgress,
       badgeColor: 'bg-[#E9E1FF] text-[#7C3AED]',
+    },
+    {
+      id: 'friends',
+      label: 'เพื่อน & แชร์ปฏิทิน',
+      icon: <UserCheck className="w-5 h-5 text-[#9B82D7]" />,
+      badge: incomingRequests.length > 0 ? incomingRequests.length : undefined,
+      badgeColor: 'bg-rose-500 text-white font-bold animate-pulse',
     },
     {
       id: 'reminders',
@@ -212,34 +231,58 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* User profile footer - clickable to edit name and role */}
-          <div
-            onClick={openProfileModal}
-            className="p-3.5 border-t border-[#F0EDF9] bg-[#FCFBFD] hover:bg-[#F7F4FD] transition-colors flex items-center gap-3 cursor-pointer group"
-            title="คลิกเพื่อแก้ไขข้อมูลโปรไฟล์ (ชื่อ / ตำแหน่งงาน)"
-          >
-            <div className="relative shrink-0">
-              <img
-                src={userSettings.avatarUrl}
-                alt={userSettings.userName}
-                className="w-9 h-9 rounded-full object-cover border border-[#D9D1EB] group-hover:border-[#9B82D7] transition-colors"
-              />
-              <div className="absolute inset-0 bg-black/25 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                <Edit3 className="w-3.5 h-3.5" />
+          {/* User profile footer */}
+          {currentUser ? (
+            <div className="p-3.5 border-t border-[#F0EDF9] bg-[#FCFBFD] flex items-center justify-between gap-2">
+              <div
+                onClick={openProfileModal}
+                className="flex items-center gap-2.5 min-w-0 cursor-pointer group flex-1"
+                title="คลิกเพื่อแก้ไขข้อมูลโปรไฟล์"
+              >
+                <img
+                  src={
+                    userProfile?.photoURL ||
+                    currentUser.photoURL ||
+                    userSettings.avatarUrl
+                  }
+                  alt={userProfile?.displayName || userSettings.userName}
+                  className="w-9 h-9 rounded-full object-cover border border-[#D9D1EB] group-hover:border-[#9B82D7] transition-colors shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#373145] truncate group-hover:text-[#6B46C1] transition-colors">
+                    {userProfile?.displayName || userSettings.userName}
+                  </p>
+                  <p className="text-[11px] text-[#7C3AED] truncate">
+                    @{userProfile?.username || 'member'}
+                  </p>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+                    logoutUser();
+                  }
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                title="ออกจากระบบ"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-1">
-                <p className="text-xs font-semibold text-[#373145] truncate group-hover:text-[#6B46C1] transition-colors">
-                  {userSettings.userName}
-                </p>
-                <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-[#6B46C1] transition-colors shrink-0" />
-              </div>
-              <p className="text-[11px] text-[#8C84A0] truncate">
-                {userSettings.userRole}
-              </p>
+          ) : (
+            <div className="p-3 border-t border-[#F0EDF9] bg-[#FAF9FD]">
+              <button
+                type="button"
+                onClick={() => openAuthModal('login')}
+                className="w-full py-2 px-3 rounded-xl bg-[#E9E1FF] hover:bg-[#ded2fd] text-[#6B46C1] text-xs font-bold flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>เข้าสู่ระบบ / สมัครสมาชิก</span>
+              </button>
             </div>
-          </div>
+          )}
         </div>
       </aside>
     </>

@@ -254,6 +254,26 @@ export const TasksView: React.FC = () => {
         </div>
       </div>
 
+      {/* Empty State Banner when 0 tasks in system */}
+      {tasks.length === 0 && (
+        <div className="bg-white p-8 rounded-2xl border border-[#E9E5F5] text-center space-y-3 shadow-xs mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-[#E9E1FF] text-[#7C3AED] flex items-center justify-center mx-auto">
+            <CheckSquare className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-sm text-[#373145]">ยังไม่มีงานในระบบ</h3>
+          <p className="text-xs text-[#827A94] max-w-sm mx-auto">
+            เริ่มต้นวางแผนงานของคุณอย่างมีประสิทธิภาพ คลิกปุ่ม &quot;เพิ่มงาน&quot; เพื่อสร้างงานแรกของคุณ
+          </p>
+          <button
+            onClick={() => openAddTaskModal()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#9B82D7] hover:bg-[#886EC9] text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>เพิ่มงานใหม่</span>
+          </button>
+        </div>
+      )}
+
       {/* Kanban View */}
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

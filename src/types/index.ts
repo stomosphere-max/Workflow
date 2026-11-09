@@ -73,3 +73,40 @@ export interface CalendarEvent {
   priority: PriorityLevel;
   status: TaskStatus;
 }
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  username: string;
+  displayName: string;
+  photoURL: string;
+  bio: string;
+  calendarSharingEnabled?: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface FriendRequest {
+  id: string; // senderId_receiverId
+  senderId: string;
+  senderUsername: string;
+  senderDisplayName: string;
+  senderPhotoURL: string;
+  receiverId: string;
+  receiverUsername: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Friend {
+  friendUid: string;
+  friendUsername: string;
+  friendDisplayName: string;
+  friendPhotoURL: string;
+  bio?: string;
+  since: string;
+  calendarSharingEnabled?: boolean;
+}
+

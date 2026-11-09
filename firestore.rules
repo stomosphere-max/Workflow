@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidUsername(uname) {
+      return uname is string && uname.size() >= 3 && uname.size() <= 20 && uname.matches('^[a-zA-Z0-9_]{3,20}$');
+    }
+
+    // Validation helper for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'username', 'displayName', 'isActive', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'username', 'displayName', 'photoURL', 'bio', 'calendarSharingEnabled', 'isActive', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() <= 128
+        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
+        && isValidUsername(data.username)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 150
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000))
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 250))
+        && (!('calendarSharingEnabled' in data) || data.calendarSharingEnabled is bool)
+        && data.isActive is bool
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['email'])
+        && data.keys().hasOnly(['email', 'emailVerified'])
+        && data.email is string && data.email.size() <= 200
+        && (!('emailVerified' in data) || data.emailVerified is bool);
+    }
+
+    function isValidUsernameRecord(data) {
+      return data.keys().hasAll(['uid', 'username'])
+        && data.keys().hasOnly(['uid', 'username'])
+        && data.uid is string && data.uid.size() <= 128
+        && isValidUsername(data.username);
+    }
+
+    function isValidFriendRequest(data) {
+      return data.keys().hasAll(['id', 'senderId', 'receiverId', 'status', 'createdAt'])
+        && data.keys().hasOnly(['id', 'senderId', 'senderUsername', 'senderDisplayName', 'senderPhotoURL', 'receiverId', 'receiverUsername', 'status', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 256
+        && data.senderId is string && data.senderId.size() <= 128
+        && data.receiverId is string && data.receiverId.size() <= 128
+        && data.status in ['pending', 'accepted', 'rejected']
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidFriendRecord(data) {
+      return data.keys().hasAll(['friendUid', 'friendUsername', 'since'])
+        && data.keys().hasOnly(['friendUid', 'friendUsername', 'friendDisplayName', 'friendPhotoURL', 'since'])
+        && data.friendUid is string && data.friendUid.size() <= 128
+        && data.friendUsername is string && data.friendUsername.size() <= 20
+        && data.since is string && data.since.size() <= 64;
+    }
+
+    function isValidUserTask(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'dueDate', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.dueDate is string && data.dueDate.size() <= 30
+        && data.status in ['todo', 'in_progress', 'done', 'waiting'];
+    }
+
+    // 1. User Profiles
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId;
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid;
+      allow delete: if false;
+
+      // 1.1 Private sensitive PII
+      match /private/{docId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      // 1.2 Connected Friends Subcollection
+      match /friends/{friendUid} {
+        allow read: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == friendUid);
+        allow create, update: if isSignedIn()
+          && (request.auth.uid == userId || request.auth.uid == friendUid)
+          && isValidFriendRecord(incoming());
+        allow delete: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == friendUid);
+      }
+
+      // 1.3 User Tasks (Viewable by owner or connected friends)
+      match /tasks/{taskId} {
+        allow get, list: if isSignedIn() && (
+          request.auth.uid == userId
+          || exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid))
+        );
+        allow create: if isSignedIn()
+          && request.auth.uid == userId
+          && incoming().userId == userId
+          && isValidUserTask(incoming());
+        allow update: if isSignedIn()
+          && request.auth.uid == userId
+          && incoming().userId == existing().userId
+          && isValidUserTask(incoming());
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // 2. Unique Usernames Registry
+    match /usernames/{username} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn()
+        && isValidUsername(username)
+        && isValidUsernameRecord(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().username == username;
+      allow update, delete: if false;
+    }
+
+    // 3. Friend Requests
+    match /friend_requests/{requestId} {
+      allow get: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid
+      );
+      allow list: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid
+      );
+      allow create: if isSignedIn()
+        && incoming().senderId == request.auth.uid
+        && incoming().senderId != incoming().receiverId
+        && isValidFriendRequest(incoming());
+      allow update: if isSignedIn()
+        && (request.auth.uid == existing().receiverId || request.auth.uid == existing().senderId)
+        && isValidFriendRequest(incoming());
+      allow delete: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid
+      );
+    }
+  }
+}

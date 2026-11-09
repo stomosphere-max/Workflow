@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   X,
   Smartphone,
+  LogIn,
 } from 'lucide-react';
 import { useWorkFlow } from '../../context/WorkFlowContext';
 import { usePWA } from '../../context/PWAContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatThaiDate } from '../../utils/thaiDate';
 
 interface HeaderProps {
@@ -33,6 +35,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   } = useWorkFlow();
 
   const { isInstalled, triggerInstall } = usePWA();
+  const { currentUser, userProfile, openAuthModal, resendVerification } = useAuth();
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
 
@@ -71,6 +75,33 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Unverified Email Notice Banner */}
+      {currentUser && !currentUser.emailVerified && currentUser.email && (
+        <div className="mb-3 px-3.5 py-1.5 rounded-xl bg-[#FAF9FD] border border-[#E9E1FF] text-[#6B46C1] text-xs flex items-center justify-between shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+            <span className="truncate">
+              อีเมล <strong>{currentUser.email}</strong> ยังไม่ได้รับการยืนยัน
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await resendVerification();
+                setVerificationSent(true);
+                setTimeout(() => setVerificationSent(false), 5000);
+              } catch (e: any) {
+                alert('ส่งไม่สำเร็จ: ' + (e.message || ''));
+              }
+            }}
+            className="text-[11px] font-bold text-[#7C3AED] hover:underline cursor-pointer shrink-0 ml-2"
+          >
+            {verificationSent ? 'ส่งลิงก์ยืนยันแล้ว!' : 'ส่งลิงก์ยืนยันอีกครั้ง'}
+          </button>
         </div>
       )}
 
@@ -221,21 +252,36 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <span className="hidden sm:inline">เพิ่มงาน</span>
           </button>
 
-          {/* User Profile Avatar Trigger */}
-          <button
-            onClick={openProfileModal}
-            className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-xl hover:bg-[#F4F1FB] border border-transparent hover:border-[#E8E2F5] transition-all cursor-pointer group"
-            title="คลิกเพื่อแก้ไขข้อมูลโปรไฟล์ (ชื่อ / ตำแหน่งงาน)"
-          >
-            <img
-              src={userSettings.avatarUrl}
-              alt={userSettings.userName}
-              className="w-7 h-7 rounded-full object-cover border border-[#D9D1EB] group-hover:border-[#9B82D7] transition-colors"
-            />
-            <span className="hidden md:inline text-xs font-semibold text-[#373145] group-hover:text-[#6B46C1] max-w-[110px] truncate transition-colors">
-              {userSettings.userName.split(' ')[0]}
-            </span>
-          </button>
+          {/* User Profile Avatar or Sign In button */}
+          {currentUser ? (
+            <button
+              onClick={openProfileModal}
+              className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-xl hover:bg-[#F4F1FB] border border-transparent hover:border-[#E8E2F5] transition-all cursor-pointer group"
+              title="คลิกเพื่อแก้ไขข้อมูลโปรไฟล์ (ชื่อ / ตำแหน่งงาน)"
+            >
+              <img
+                src={
+                  userProfile?.photoURL ||
+                  currentUser.photoURL ||
+                  userSettings.avatarUrl
+                }
+                alt={userProfile?.displayName || userSettings.userName}
+                className="w-7 h-7 rounded-full object-cover border border-[#D9D1EB] group-hover:border-[#9B82D7] transition-colors"
+              />
+              <span className="hidden md:inline text-xs font-semibold text-[#373145] group-hover:text-[#6B46C1] max-w-[110px] truncate transition-colors">
+                {userProfile?.displayName?.split(' ')[0] || userSettings.userName.split(' ')[0]}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAuthModal('login')}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#9B82D7] hover:bg-[#886EC9] active:scale-[0.98] text-white text-xs font-semibold shadow-xs shadow-[#9B82D7]/30 transition-all cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>เข้าสู่ระบบ</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -51,6 +51,13 @@ export const DashboardView: React.FC = () => {
 
   // Fetch AI prioritization advice
   const fetchAiAdvice = async () => {
+    if (tasks.length === 0) {
+      setAiAdvice('ยินดีต้อนรับสู่ WorkFlow! ยังไม่มีรายการงานในระบบ คุณสามารถคลิกปุ่ม "เพิ่มงาน" เพื่อเริ่มต้นวางแผนงานของคุณได้ทันที');
+      setDailySlots([]);
+      setLoadingAi(false);
+      return;
+    }
+
     setLoadingAi(true);
     try {
       const res = await fetch('/api/ai/prioritize', {
@@ -65,10 +72,10 @@ export const DashboardView: React.FC = () => {
           setDailySlots(data.data.dailyScheduleSuggestion);
         }
       } else {
-        setAiAdvice('แนะนำให้เริ่มเคลียร์งานเร่งด่วนช่วงเช้า 09:30 - 11:30 น. เพื่อคลายความกังวลและรักษาโฟกัสของวัน');
+        setAiAdvice('ระบบพร้อมช่วยคุณวิเคราะห์และจัดลำดับความสำคัญของงานตามความเร่งด่วน');
       }
     } catch (e) {
-      setAiAdvice('แนะนำให้เริ่มเคลียร์งานเร่งด่วนช่วงเช้า 09:30 - 11:30 น. เพื่อคลายความกังวลและรักษาโฟกัสของวัน');
+      setAiAdvice('ระบบพร้อมช่วยคุณวิเคราะห์และจัดลำดับความสำคัญของงานตามความเร่งด่วน');
     } finally {
       setLoadingAi(false);
     }

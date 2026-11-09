@@ -8,6 +8,8 @@ import {
   INITIAL_USER_SETTINGS,
 } from '../utils/initialData';
 import { hasTimeConflict } from '../utils/thaiDate';
+import { doc, setDoc, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 export type MainNavTab =
   | 'dashboard'
@@ -15,6 +17,7 @@ export type MainNavTab =
   | 'tasks'
   | 'reminders'
   | 'followup'
+  | 'friends'
   | 'ai'
   | 'weekly'
   | 'settings';
@@ -104,11 +107,15 @@ export const WorkFlowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed: Task[] = JSON.parse(saved);
+        const mockTaskIds = new Set(['task-1', 'task-2', 'task-3', 'task-4', 'task-5', 'task-6', 'task-7']);
+        return parsed.filter((t) => !mockTaskIds.has(t.id));
+      }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_TASKS;
+    return [];
   });
 
   // Load categories
@@ -126,11 +133,15 @@ export const WorkFlowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FOLLOW_UPS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed: FollowUpItem[] = JSON.parse(saved);
+        const mockFuIds = new Set(['fu-1', 'fu-2', 'fu-3', 'fu-4']);
+        return parsed.filter((f) => !mockFuIds.has(f.id));
+      }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_FOLLOW_UPS;
+    return [];
   });
 
   // Load settings
@@ -241,6 +252,24 @@ export const WorkFlowProvider: React.FC<{ children: ReactNode }> = ({ children }
       return updated;
     });
 
+    if (auth.currentUser) {
+      setDoc(doc(db, 'users', auth.currentUser.uid, 'tasks', id), {
+        id,
+        userId: auth.currentUser.uid,
+        title: newTask.title,
+        category: newTask.category,
+        priority: newTask.priority,
+        status: newTask.status,
+        dueDate: newTask.dueDate,
+        startTime: newTask.startTime || '',
+        endTime: newTask.endTime || '',
+        description: newTask.description || '',
+        department: newTask.department || '',
+        isSharedWithFriends: true,
+        createdAt: newTask.createdAt,
+      }).catch((e) => console.warn('Sync task to firestore:', e));
+    }
+
     return id;
   };
 
@@ -251,10 +280,17 @@ export const WorkFlowProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (conflict) setTimeConflict(conflict);
       return updated;
     });
+
+    if (auth.currentUser) {
+      updateDoc(doc(db, 'users', auth.currentUser.uid, 'tasks', id), updates).catch(() => {});
+    }
   };
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    if (auth.currentUser) {
+      deleteDoc(doc(db, 'users', auth.currentUser.uid, 'tasks', id)).catch(() => {});
+    }
   };
 
   const toggleTaskComplete = (id: string) => {
@@ -264,6 +300,11 @@ export const WorkFlowProvider: React.FC<{ children: ReactNode }> = ({ children }
           const isNowDone = t.status !== 'done';
           if (isNowDone) {
             triggerCelebration();
+          }
+          if (auth.currentUser) {
+            updateDoc(doc(db, 'users', auth.currentUser.uid, 'tasks', id), {
+              status: isNowDone ? 'done' : 'in_progress',
+            }).catch(() => {});
           }
           return {
             ...t,
