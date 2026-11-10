@@ -134,9 +134,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
 
           const now = new Date().toISOString();
-          const initialProfile: UserProfile = {
+          const publicProfile = {
             uid: user.uid,
-            email: user.email || '',
             username: chosenUsername,
             displayName: (user.displayName || 'สมาชิก WorkFlow').slice(0, 100),
             photoURL: user.photoURL || `https://api.dicebear.com/7.x/notionists/svg?seed=${user.uid}`,
@@ -148,7 +147,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           };
 
           const batch = writeBatch(db);
-          batch.set(userDocRef, initialProfile);
+          batch.set(userDocRef, publicProfile);
           batch.set(doc(db, 'users', user.uid, 'private', 'info'), {
             email: user.email || '',
             emailVerified: user.emailVerified || false,
@@ -160,7 +159,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           try {
             await batch.commit();
-            setUserProfile(initialProfile);
+            setUserProfile({
+              ...publicProfile,
+              email: user.email || '',
+            });
           } catch (batchErr) {
             handleFirestoreError(batchErr, OperationType.CREATE, `users/${user.uid}`);
           }
@@ -287,9 +289,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Firestore batch writes
     const now = new Date().toISOString();
-    const profile: UserProfile = {
+    const publicProfile = {
       uid: user.uid,
-      email: email.trim(),
       username: cleanUsername,
       displayName: displayName.trim(),
       photoURL: defaultAvatar,
@@ -301,7 +302,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const batch = writeBatch(db);
-    batch.set(doc(db, 'users', user.uid), profile);
+    batch.set(doc(db, 'users', user.uid), publicProfile);
     batch.set(doc(db, 'users', user.uid, 'private', 'info'), {
       email: email.trim(),
       emailVerified: false,
@@ -312,7 +313,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     await batch.commit();
-    setUserProfile(profile);
+    setUserProfile({
+      ...publicProfile,
+      email: email.trim(),
+    });
     closeAuthModal();
   };
 
@@ -479,20 +483,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await deleteDoc(reqRef);
   };
 
-  // Remove / unfriend
+  // Remove / unfriend: immediately revokes calendar access in both directions and purges old requests
   const removeFriend = async (friendUid: string) => {
     if (!currentUser) return;
     const batch = writeBatch(db);
     batch.delete(doc(db, 'users', currentUser.uid, 'friends', friendUid));
     batch.delete(doc(db, 'users', friendUid, 'friends', currentUser.uid));
+    batch.delete(doc(db, 'friend_requests', `${currentUser.uid}_${friendUid}`));
+    batch.delete(doc(db, 'friend_requests', `${friendUid}_${currentUser.uid}`));
     await batch.commit();
   };
 
-  // Fetch friend's tasks for shared calendar
+  // Fetch friend's tasks for shared calendar (Privacy: only activities allowed to be shared)
   const fetchFriendTasks = async (friendUid: string): Promise<any[]> => {
     try {
       const tasksRef = collection(db, 'users', friendUid, 'tasks');
-      const snap = await getDocs(tasksRef);
+      const q = query(tasksRef, where('isSharedWithFriends', '==', true));
+      const snap = await getDocs(q);
       const list: any[] = [];
       snap.forEach((d) => list.push(d.data()));
       return list;

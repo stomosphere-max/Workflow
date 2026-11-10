@@ -25,6 +25,8 @@ export interface Task {
   actualHours?: number;
   isImportantMeeting?: boolean;
   reminderMinutesBefore?: number; // 15, 30, 60, 1440
+  isSharedWithFriends?: boolean; // share on friends calendar (default: false / private)
+  canFriendsEdit?: boolean; // allow connected friends to edit details (cannot delete or change ownership)
   completedAt?: string;
   createdAt: string;
 }
@@ -76,7 +78,7 @@ export interface CalendarEvent {
 
 export interface UserProfile {
   uid: string;
-  email: string;
+  email?: string; // Private sensitive info kept in /users/{userId}/private/info
   username: string;
   displayName: string;
   photoURL: string;

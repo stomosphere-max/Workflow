@@ -265,7 +265,8 @@ export const WorkFlowProvider: React.FC<{ children: ReactNode }> = ({ children }
         endTime: newTask.endTime || '',
         description: newTask.description || '',
         department: newTask.department || '',
-        isSharedWithFriends: true,
+        isSharedWithFriends: Boolean(newTask.isSharedWithFriends),
+        canFriendsEdit: Boolean(newTask.canFriendsEdit),
         createdAt: newTask.createdAt,
       }).catch((e) => console.warn('Sync task to firestore:', e));
     }

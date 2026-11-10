@@ -11,6 +11,9 @@ import {
   Tag,
   Building,
   Loader2,
+  Share2,
+  Lock,
+  Pencil,
 } from 'lucide-react';
 import { useWorkFlow } from '../../context/WorkFlowContext';
 import { PriorityLevel, SubTask, Task, TaskStatus } from '../../types';
@@ -37,6 +40,8 @@ export const TaskModal: React.FC = () => {
   const [endTime, setEndTime] = useState('10:00');
   const [department, setDepartment] = useState('');
   const [estimatedHours, setEstimatedHours] = useState<number | undefined>(1);
+  const [isSharedWithFriends, setIsSharedWithFriends] = useState(false);
+  const [canFriendsEdit, setCanFriendsEdit] = useState(false);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isGeneratingAiSubtasks, setIsGeneratingAiSubtasks] = useState(false);
@@ -54,6 +59,8 @@ export const TaskModal: React.FC = () => {
       setEndTime(editingTask.endTime || '10:00');
       setDepartment(editingTask.department || '');
       setEstimatedHours(editingTask.estimatedHours || 1);
+      setIsSharedWithFriends(Boolean(editingTask.isSharedWithFriends));
+      setCanFriendsEdit(Boolean(editingTask.canFriendsEdit));
       setSubtasks(editingTask.subtasks ? [...editingTask.subtasks] : []);
     } else {
       const today = new Date().toISOString().split('T')[0];
@@ -67,6 +74,8 @@ export const TaskModal: React.FC = () => {
       setEndTime('10:00');
       setDepartment('');
       setEstimatedHours(1);
+      setIsSharedWithFriends(false); // Default: Private task
+      setCanFriendsEdit(false);
       setSubtasks([]);
     }
     setAiError(null);
@@ -147,6 +156,8 @@ export const TaskModal: React.FC = () => {
         endTime,
         department: department.trim(),
         estimatedHours,
+        isSharedWithFriends,
+        canFriendsEdit: isSharedWithFriends ? canFriendsEdit : false,
         subtasks,
       });
     } else {
@@ -161,6 +172,8 @@ export const TaskModal: React.FC = () => {
         endTime,
         department: department.trim(),
         estimatedHours,
+        isSharedWithFriends,
+        canFriendsEdit: isSharedWithFriends ? canFriendsEdit : false,
         subtasks,
       });
     }
@@ -352,6 +365,68 @@ export const TaskModal: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Calendar Privacy Setting */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#F8F7FC] border border-[#E5E1F2]">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isSharedWithFriends ? 'bg-[#E9E1FF] text-[#7C3AED]' : 'bg-slate-200 text-slate-600'}`}>
+                {isSharedWithFriends ? <Share2 className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[#373145]">
+                  {isSharedWithFriends ? 'แชร์ให้เพื่อนในปฏิทิน (Shared)' : 'งานส่วนตัวเฉพาะฉัน (Private Task)'}
+                </p>
+                <p className="text-[11px] text-[#8C84A0]">
+                  {isSharedWithFriends ? 'เพื่อนที่เชื่อมต่อสามารถดูกำหนดการนี้ใน Shared Calendar ได้' : 'ซ่อนจากเพื่อน มีเพียงคุณคนเดียวที่เห็นงานนี้'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSharedWithFriends(!isSharedWithFriends)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isSharedWithFriends ? 'bg-[#9B82D7]' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isSharedWithFriends ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Collaborative Friend Edit Permission Toggle (Only shown when shared) */}
+          {isSharedWithFriends && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF9FD] border border-[#E9E1FF] ml-4 animate-in fade-in slide-in-from-top-1">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${canFriendsEdit ? 'bg-[#E9E1FF] text-[#7C3AED]' : 'bg-slate-200 text-slate-500'}`}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#373145]">
+                    อนุญาตให้เพื่อนแก้ไขงานนี้ได้ (Collaborative Editing)
+                  </p>
+                  <p className="text-[11px] text-[#8C84A0]">
+                    เพื่อนสามารถช่วยเช็กรายการย่อยหรืออัปเดตสถานะได้ (แต่ไม่สามารถลบงานหรือเปลี่ยนสิทธิ์ความเป็นเจ้าของได้)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCanFriendsEdit(!canFriendsEdit)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  canFriendsEdit ? 'bg-[#7C3AED]' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    canFriendsEdit ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
 
           {/* Description */}
           <div>

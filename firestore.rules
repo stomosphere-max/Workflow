@@ -2,14 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global Safety Net: Default Deny
+    // Global Safety Net: Default Deny (Block everything by default)
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     function incoming() {
@@ -20,20 +20,22 @@ service cloud.firestore {
       return resource.data;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     function isValidUsername(uname) {
       return uname is string && uname.size() >= 3 && uname.size() <= 20 && uname.matches('^[a-zA-Z0-9_]{3,20}$');
     }
 
-    // Validation helper for UserProfile
+    // 0. Health check endpoint for boot verification
+    match /test/{docId} {
+      allow get: if true;
+    }
+
+    // --- Validation Schemas ---
+
+    // 1. User Profile: Strictly public info, NO EMAIL
     function isValidUserProfile(data) {
       return data.keys().hasAll(['uid', 'username', 'displayName', 'isActive', 'createdAt'])
-        && data.keys().hasOnly(['uid', 'email', 'username', 'displayName', 'photoURL', 'bio', 'calendarSharingEnabled', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'username', 'displayName', 'photoURL', 'bio', 'calendarSharingEnabled', 'isActive', 'createdAt', 'updatedAt'])
         && data.uid is string && data.uid.size() <= 128
-        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
         && isValidUsername(data.username)
         && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 150
         && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000))
@@ -44,6 +46,7 @@ service cloud.firestore {
         && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
+    // 2. Private Info: Sensitive PII (email, verification)
     function isValidUserPrivateInfo(data) {
       return data.keys().hasAll(['email'])
         && data.keys().hasOnly(['email', 'emailVerified'])
@@ -51,6 +54,7 @@ service cloud.firestore {
         && (!('emailVerified' in data) || data.emailVerified is bool);
     }
 
+    // 3. Username Record: Unique registry mapping
     function isValidUsernameRecord(data) {
       return data.keys().hasAll(['uid', 'username'])
         && data.keys().hasOnly(['uid', 'username'])
@@ -58,6 +62,7 @@ service cloud.firestore {
         && isValidUsername(data.username);
     }
 
+    // 4. Friend Request Record
     function isValidFriendRequest(data) {
       return data.keys().hasAll(['id', 'senderId', 'receiverId', 'status', 'createdAt'])
         && data.keys().hasOnly(['id', 'senderId', 'senderUsername', 'senderDisplayName', 'senderPhotoURL', 'receiverId', 'receiverUsername', 'status', 'createdAt', 'updatedAt'])
@@ -65,68 +70,171 @@ service cloud.firestore {
         && data.senderId is string && data.senderId.size() <= 128
         && data.receiverId is string && data.receiverId.size() <= 128
         && data.status in ['pending', 'accepted', 'rejected']
-        && data.createdAt is string && data.createdAt.size() <= 64;
+        && (!('senderUsername' in data) || (data.senderUsername is string && data.senderUsername.size() <= 30))
+        && (!('senderDisplayName' in data) || (data.senderDisplayName is string && data.senderDisplayName.size() <= 150))
+        && (!('senderPhotoURL' in data) || (data.senderPhotoURL is string && data.senderPhotoURL.size() <= 1000))
+        && (!('receiverUsername' in data) || (data.receiverUsername is string && data.receiverUsername.size() <= 30))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
+    // 5. Friendship Connection Record
     function isValidFriendRecord(data) {
       return data.keys().hasAll(['friendUid', 'friendUsername', 'since'])
         && data.keys().hasOnly(['friendUid', 'friendUsername', 'friendDisplayName', 'friendPhotoURL', 'since'])
         && data.friendUid is string && data.friendUid.size() <= 128
-        && data.friendUsername is string && data.friendUsername.size() <= 20
+        && data.friendUsername is string && data.friendUsername.size() <= 30
+        && (!('friendDisplayName' in data) || (data.friendDisplayName is string && data.friendDisplayName.size() <= 150))
+        && (!('friendPhotoURL' in data) || (data.friendPhotoURL is string && data.friendPhotoURL.size() <= 1000))
         && data.since is string && data.since.size() <= 64;
     }
 
+    // 6. User Tasks (Full validation including all existing and optional fields)
     function isValidUserTask(data) {
       return data.keys().hasAll(['id', 'userId', 'title', 'dueDate', 'status'])
+        && data.keys().hasOnly([
+          'id', 'userId', 'title', 'category', 'priority', 'status', 'dueDate',
+          'startTime', 'endTime', 'description', 'department', 'subtasks',
+          'assignedTo', 'estimatedHours', 'actualHours', 'isImportantMeeting',
+          'reminderMinutesBefore', 'completedAt', 'isSharedWithFriends',
+          'canFriendsEdit', 'createdAt', 'updatedAt'
+        ])
         && data.id is string && data.id.size() <= 128
         && data.userId is string && data.userId.size() <= 128
-        && data.title is string && data.title.size() <= 300
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 300
         && data.dueDate is string && data.dueDate.size() <= 30
-        && data.status in ['todo', 'in_progress', 'done', 'waiting'];
+        && data.status in ['todo', 'in_progress', 'done', 'waiting']
+        && (!('priority' in data) || data.priority in ['urgent', 'high', 'medium', 'low'])
+        && (!('category' in data) || (data.category is string && data.category.size() <= 100))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 3000))
+        && (!('department' in data) || (data.department is string && data.department.size() <= 100))
+        && (!('startTime' in data) || (data.startTime is string && data.startTime.size() <= 20))
+        && (!('endTime' in data) || (data.endTime is string && data.endTime.size() <= 20))
+        && (!('isSharedWithFriends' in data) || data.isSharedWithFriends is bool)
+        && (!('canFriendsEdit' in data) || data.canFriendsEdit is bool)
+        && (!('isImportantMeeting' in data) || data.isImportantMeeting is bool)
+        && (!('subtasks' in data) || data.subtasks is list)
+        && (!('assignedTo' in data) || (data.assignedTo is string && data.assignedTo.size() <= 100))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64))
+        && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 64));
     }
 
-    // 1. User Profiles
+    // Helper: Verify if two users have an active, accepted friendship request
+    function hasVerifiedFriendshipRequest(userA, userB) {
+      let r1 = userA + '_' + userB;
+      let r2 = userB + '_' + userA;
+      return (
+        (existsAfter(/databases/$(database)/documents/friend_requests/$(r1)) &&
+         getAfter(/databases/$(database)/documents/friend_requests/$(r1)).data.status == 'accepted')
+        ||
+        (existsAfter(/databases/$(database)/documents/friend_requests/$(r2)) &&
+         getAfter(/databases/$(database)/documents/friend_requests/$(r2)).data.status == 'accepted')
+      );
+    }
+
+    // --- Collection Rules ---
+
+    // 1. User Profiles Collection
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      // Any signed-in user can search/view profiles by @username or UID
+      allow get, list: if isSignedIn();
+
+      // Owner can create profile matching their auth UID (No email allowed in this public document)
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && isValidUserProfile(incoming())
         && incoming().uid == userId;
+
+      // Owner can update profile; UID, username, and createdAt are IMMUTABLE
       allow update: if isSignedIn()
         && request.auth.uid == userId
         && isValidUserProfile(incoming())
-        && incoming().uid == existing().uid;
+        && incoming().uid == existing().uid
+        && incoming().username == existing().username
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'photoURL', 'bio', 'calendarSharingEnabled', 'isActive', 'updatedAt'
+        ]);
+
+      // Account deletion via client is blocked
       allow delete: if false;
 
-      // 1.1 Private sensitive PII
+      // 1.1 Private sensitive PII (Email & Verification): Strictly private to owner
       match /private/{docId} {
         allow read, write: if isSignedIn() && request.auth.uid == userId;
       }
 
       // 1.2 Connected Friends Subcollection
       match /friends/{friendUid} {
+        // Only the two connected users can view the friendship
         allow read: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == friendUid);
-        allow create, update: if isSignedIn()
+
+        // Friendship can ONLY be created if an accepted friend request exists between both users
+        allow create: if isSignedIn()
           && (request.auth.uid == userId || request.auth.uid == friendUid)
-          && isValidFriendRecord(incoming());
+          && incoming().friendUid == friendUid
+          && isValidFriendRecord(incoming())
+          && hasVerifiedFriendshipRequest(userId, friendUid);
+
+        // Disallow arbitrary mutation of friendship records
+        allow update: if false;
+
+        // Either party can unfriend (immediately revokes friendship & calendar access in both directions)
         allow delete: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == friendUid);
       }
 
-      // 1.3 User Tasks (Viewable by owner or connected friends)
+      // 1.3 User Tasks (Calendar & Tasks Management)
       match /tasks/{taskId} {
+        // Read: Owner can read all tasks. Friends can ONLY read if task isSharedWithFriends == true
         allow get, list: if isSignedIn() && (
           request.auth.uid == userId
-          || exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid))
+          || (
+            exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid))
+            && resource.data.isSharedWithFriends == true
+          )
         );
+
+        // Create: Only owner can create their tasks
         allow create: if isSignedIn()
           && request.auth.uid == userId
           && incoming().userId == userId
+          && incoming().id == taskId
           && isValidUserTask(incoming());
-        allow update: if isSignedIn()
-          && request.auth.uid == userId
-          && incoming().userId == existing().userId
-          && isValidUserTask(incoming());
+
+        // Update:
+        // Tier 1 (Owner): Can update any task field
+        // Tier 2 (Authorized Friend): If task is shared AND canFriendsEdit == true, friend can edit content/status
+        // Friends CANNOT modify userId, id, createdAt, isSharedWithFriends, or canFriendsEdit
+        allow update: if isSignedIn() && (
+          // Owner
+          (
+            request.auth.uid == userId
+            && incoming().id == existing().id
+            && incoming().userId == existing().userId
+            && incoming().createdAt == existing().createdAt
+            && isValidUserTask(incoming())
+          )
+          ||
+          // Connected Friend with collaborative edit permission
+          (
+            exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid))
+            && existing().isSharedWithFriends == true
+            && existing().canFriendsEdit == true
+            && incoming().id == existing().id
+            && incoming().userId == existing().userId
+            && incoming().createdAt == existing().createdAt
+            && incoming().isSharedWithFriends == existing().isSharedWithFriends
+            && incoming().canFriendsEdit == existing().canFriendsEdit
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'status', 'title', 'description', 'subtasks', 'dueDate',
+              'startTime', 'endTime', 'category', 'priority', 'completedAt', 'updatedAt'
+            ])
+            && isValidUserTask(incoming())
+          )
+        );
+
+        // Delete: Only owner can delete their tasks. Friends CANNOT delete, even if canFriendsEdit == true
         allow delete: if isSignedIn() && request.auth.uid == userId;
       }
     }
@@ -134,29 +242,51 @@ service cloud.firestore {
     // 2. Unique Usernames Registry
     match /usernames/{username} {
       allow get, list: if isSignedIn();
+      // Username registration: caller cannot register on behalf of another UID
       allow create: if isSignedIn()
         && isValidUsername(username)
         && isValidUsernameRecord(incoming())
         && incoming().uid == request.auth.uid
-        && incoming().username == username;
+        && incoming().username == username
+        && !exists(/databases/$(database)/documents/usernames/$(username));
+      // Usernames cannot be updated or deleted
       allow update, delete: if false;
     }
 
-    // 3. Friend Requests
+    // 3. Friend Requests Collection
     match /friend_requests/{requestId} {
-      allow get: if isSignedIn() && (
+      // Read: Only the sender or receiver can see the request
+      allow get, list: if isSignedIn() && (
         resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid
       );
-      allow list: if isSignedIn() && (
-        resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid
-      );
+
+      // Create: Only sender can create, must be pending, and cannot send to self
       allow create: if isSignedIn()
         && incoming().senderId == request.auth.uid
         && incoming().senderId != incoming().receiverId
+        && incoming().id == incoming().senderId + '_' + incoming().receiverId
+        && incoming().status == 'pending'
         && isValidFriendRequest(incoming());
+
+      // Update: Role-based status transition
+      // - Receiver can Accept or Reject
+      // - Sender cannot accept their own request
+      // - senderId, receiverId, id, createdAt are strictly IMMUTABLE
       allow update: if isSignedIn()
-        && (request.auth.uid == existing().receiverId || request.auth.uid == existing().senderId)
+        && request.auth.uid == existing().receiverId
+        && existing().status == 'pending'
+        && incoming().status in ['accepted', 'rejected']
+        && incoming().id == existing().id
+        && incoming().senderId == existing().senderId
+        && incoming().receiverId == existing().receiverId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
         && isValidFriendRequest(incoming());
+
+      // Delete:
+      // - Sender can cancel their pending request
+      // - Receiver can dismiss/delete the request
+      // - Either party can purge the request during unfriend
       allow delete: if isSignedIn() && (
         resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid
       );
